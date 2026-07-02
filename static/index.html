@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ANTIGRAVITY // Local Image Studio</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <div class="system-status-float">
+            <span class="status-indicator"></span>
+            <span class="status-text">GPU_DEVICE: RTX_3070_TI // FP16_ACTIVE</span>
+        </div>
+
+        <main class="main-content">
+            <!-- Sidebar with controls -->
+            <section class="cyber-card pink">
+                <div class="card-corner-tag">SYS_CFG_01</div>
+                <h2>GENERATOR CONFIG</h2>
+                <div class="cyber-divider"></div>
+                
+                <div class="control-group">
+                    <label for="model-select">Model Engine</label>
+                    <select id="model-select">
+                        <!-- Populated by JS -->
+                    </select>
+                    <p class="model-description" id="model-desc"></p>
+                </div>
+
+                <div class="control-group">
+                    <label for="prompt">Prompt Synthesis</label>
+                    <textarea id="prompt" placeholder="Enter prompt directives..."></textarea>
+                </div>
+
+                <div class="control-group">
+                    <label for="neg-prompt">Negative Directives</label>
+                    <textarea id="neg-prompt" placeholder="Exclude characteristics..."></textarea>
+                </div>
+
+                <div class="settings-grid">
+                    <div class="control-group">
+                        <label for="steps">Steps: <span id="steps-val">6</span></label>
+                        <input type="range" id="steps" min="1" max="50" value="6">
+                    </div>
+
+                    <div class="control-group">
+                        <label for="cfg">CFG Scale: <span id="cfg-val">2.0</span></label>
+                        <input type="range" id="cfg" min="1.0" max="15.0" step="0.5" value="2.0">
+                    </div>
+
+                    <div class="control-group">
+                        <label for="width">Width</label>
+                        <select id="width">
+                            <option value="512">512px</option>
+                            <option value="768">768px</option>
+                            <option value="1024" selected>1024px</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="height">Height</label>
+                        <select id="height">
+                            <option value="512">512px</option>
+                            <option value="768">768px</option>
+                            <option value="1024" selected>1024px</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="seed">Direct Seed (-1 for Random)</label>
+                    <input type="number" id="seed" value="-1">
+                </div>
+
+                <button id="generate-btn" class="generate-button">
+                    GENERATE // EXECUTE
+                </button>
+            </section>
+
+            <!-- Main preview & History workspace -->
+            <section class="workspace">
+                <div class="cyber-card preview-container">
+                    <div class="card-corner-tag">MONITOR_01</div>
+                    <div id="loading-overlay" class="hidden">
+                        <div class="spinner"></div>
+                        <p>SYNTHESIZING IMAGE... (SDXL FP16)</p>
+                    </div>
+                    <div id="placeholder-view" class="placeholder-view">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="placeholder-icon">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                        </svg>
+                        <p>READY_FOR_DIRECTIVES</p>
+                    </div>
+                    <img id="result-img" class="result-image hidden" src="" alt="Synthesized output">
+                    <div id="perf-stats" class="perf-stats hidden">
+                        <span>TIME: <span id="stat-time">0.00s</span></span>
+                        <span>SPEED: <span id="stat-speed">0.00 it/s</span></span>
+                    </div>
+                    <div id="image-actions" class="image-actions hidden">
+                        <a id="download-link" href="#" download="synthesized-image.png" class="btn">EXTRACT // DOWNLOAD</a>
+                        <button id="reuse-seed-btn" class="btn secondary">REUSE SEED</button>
+                    </div>
+                </div>
+
+                <div class="cyber-card history-panel">
+                    <div class="card-corner-tag">SYS_HISTORY_01</div>
+                    <h3>RECENT SYNTHESIS</h3>
+                    <div class="cyber-divider"></div>
+                    <div id="history-gallery" class="history-gallery">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <div id="zoom-backdrop" class="zoom-backdrop hidden">
+        <img id="zoom-img" src="" alt="Zoomed View">
+    </div>
+    <script src="/static/app.js"></script>
+</body>
+</html>

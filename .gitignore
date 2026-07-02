@@ -1,0 +1,22 @@
+# Python virtual environment
+venv/
+.venv/
+env/
+
+# Python caching
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Hugging Face model cache (heavy files, 6GB+)
+hf_cache/
+
+# Generated outputs
+static/outputs/*.png
+static/outputs/*.txt
+
+# Logs & Temporary files
+*.log
+.locks/
+.agent_harnesses.json
