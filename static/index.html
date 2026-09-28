@@ -4,105 +4,279 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ANTIGRAVITY // Local Image Studio</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=20260928-speed">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="app-container">
-        <div class="system-status-float">
-            <span class="status-indicator"></span>
-            <span class="status-text">GPU_DEVICE: RTX_3070_TI // FP16_ACTIVE</span>
+    <!-- Floating Generation Status Badge (Top Right, Non-Blocking) -->
+    <div id="generating-badge" class="generating-badge hidden">
+        <div class="badge-spinner"></div>
+        <div class="badge-info">
+            <span id="badge-title" class="badge-title">GENERATING...</span>
+            <span id="badge-timer" class="badge-timer">0.0s</span>
         </div>
+        <button id="cancel-btn" class="badge-cancel-btn" type="button" title="Cancel generation">CANCEL</button>
+    </div>
+
+    <div class="app-container">
 
         <main class="main-content">
-            <!-- Sidebar with controls -->
-            <section class="cyber-card pink">
-                <div class="card-corner-tag">SYS_CFG_01</div>
-                <h2>GENERATOR CONFIG</h2>
-                <div class="cyber-divider"></div>
-                
-                <div class="control-group">
-                    <label for="model-select">Model Engine</label>
-                    <select id="model-select">
-                        <!-- Populated by JS -->
-                    </select>
-                    <p class="model-description" id="model-desc"></p>
-                </div>
-
-                <div class="control-group">
-                    <label for="prompt">Prompt Synthesis</label>
-                    <textarea id="prompt" placeholder="Enter prompt directives..."></textarea>
-                </div>
-
-                <div class="control-group">
-                    <label for="neg-prompt">Negative Directives</label>
-                    <textarea id="neg-prompt" placeholder="Exclude characteristics..."></textarea>
-                </div>
-
-                <div class="settings-grid">
-                    <div class="control-group">
-                        <label for="steps">Steps: <span id="steps-val">6</span></label>
-                        <input type="range" id="steps" min="1" max="50" value="6">
-                    </div>
-
-                    <div class="control-group">
-                        <label for="cfg">CFG Scale: <span id="cfg-val">2.0</span></label>
-                        <input type="range" id="cfg" min="1.0" max="15.0" step="0.5" value="2.0">
-                    </div>
-
-                    <div class="control-group">
-                        <label for="width">Width</label>
-                        <select id="width">
-                            <option value="512">512px</option>
-                            <option value="768">768px</option>
-                            <option value="1024" selected>1024px</option>
+            <div class="sidebar-container">
+                <!-- Sidebar with controls -->
+                <section class="cyber-card pink">
+                    <div class="card-corner-tag">SYS_CFG_01</div>
+                    <h2>GENERATOR CONFIG</h2>
+                    <div class="cyber-divider"></div>
+                    
+                    <div class="control-group tooltip-host">
+                        <label for="model-select">Model Engine <span class="tooltip-icon">?</span></label>
+                        <select id="model-select">
+                            <!-- Populated by JS -->
                         </select>
+                        <div class="hover-tooltip" id="model-desc">Select diffusion checkpoint engine</div>
+                    </div>
+
+                    <div class="control-group tooltip-host">
+                        <label for="sampler-select">Sampler (Scheduler) <span class="tooltip-icon">?</span></label>
+                        <select id="sampler-select">
+                            <!-- Populated by JS -->
+                        </select>
+                        <div class="hover-tooltip">Noise step solver algorithm for inference diffusion steps</div>
+                    </div>
+
+                    <div class="control-group tooltip-host">
+                        <label for="performance-select">Performance Mode <span class="tooltip-icon">?</span></label>
+                        <select id="performance-select">
+                            <option value="max_speed">MAX SPEED (Direct VRAM)</option>
+                            <option value="balanced">BALANCED (Low VRAM)</option>
+                        </select>
+                        <div class="hover-tooltip">MAX SPEED loads the entire model into GPU memory for ultra-fast execution. BALANCED dynamically offloads components to CPU.</div>
+                    </div>
+
+                    <div class="control-group compile-toggle-group tooltip-host">
+                        <div class="compile-toggle-container">
+                            <label class="square-switch">
+                                <input type="checkbox" id="compile-checkbox">
+                                <span class="square-slider"></span>
+                            </label>
+                            <label for="compile-checkbox" class="compile-label">
+                                PYTORCH COMPILE <span class="compile-badge">WARMUP REQUIRED</span>
+                            </label>
+                        </div>
+                        <div class="hover-tooltip">Compiles model kernels for max GPU throughput. Takes 1-3 mins on first run per model.</div>
+                    </div>
+
+                    <div class="control-group compile-toggle-group tooltip-host">
+                        <div class="compile-toggle-container">
+                            <label class="square-switch">
+                                <input type="checkbox" id="turbo-checkbox">
+                                <span class="square-slider"></span>
+                            </label>
+                            <label for="turbo-checkbox" class="compile-label">
+                                TURBO LORA (SDXL) <span class="compile-badge">4 STEPS</span>
+                            </label>
+                        </div>
+                        <div class="hover-tooltip">Fuses the DMD2 distillation LoRA into SDXL/Pony checkpoints. Generate in 4-8 steps at CFG 1.0 with the LCM sampler (roughly 6-10x faster). Reloads the model.</div>
+                    </div>
+
+                    <div class="control-group compile-toggle-group tooltip-host">
+                        <div class="compile-toggle-container">
+                            <label class="square-switch">
+                                <input type="checkbox" id="preview-checkbox" checked>
+                                <span class="square-slider"></span>
+                            </label>
+                            <label for="preview-checkbox" class="compile-label">
+                                LIVE STEP PREVIEW
+                            </label>
+                        </div>
+                        <div class="hover-tooltip">Shows a low-res preview of the image while it denoises (tiny TAESD decoder, a few ms per preview).</div>
+                    </div>
+
+                    <div class="control-group" style="margin-top: 10px; margin-bottom: 15px;">
+                        <button id="open-test-matrix-btn" class="btn secondary" style="width: 100%; letter-spacing: 1px; font-weight: bold;">
+                            BENCHMARK // SAMPLER TEST MATRIX
+                        </button>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label for="prompt">Prompt Synthesis</label>
+                        <textarea id="prompt" placeholder="Enter prompt directives..."></textarea>
+                    </div>
+    
+                    <div class="control-group">
+                        <label for="neg-prompt">Negative Directives</label>
+                        <textarea id="neg-prompt" placeholder="Exclude characteristics..."></textarea>
+                    </div>
+
+                    <!-- Source Image Input / Img2Img -->
+                    <div class="control-group img2img-container">
+                        <div class="img2img-header">
+                            <label>SOURCE IMAGE // IMG2IMG <span class="img2img-badge" id="img2img-badge">OPTIONAL</span></label>
+                            <button id="clear-img2img-btn" type="button" class="btn-clear-img" style="display: none;" title="Remove Image">&times; CLEAR</button>
+                        </div>
+                        <div class="img2img-dropzone" id="img2img-dropzone">
+                            <input type="file" id="img2img-input" accept="image/*" style="display: none;">
+                            <div class="dropzone-empty" id="dropzone-empty">
+                                <div class="dropzone-icon">📷</div>
+                                <div class="dropzone-text">DRAG & DROP OR <span class="dropzone-highlight">BROWSE</span></div>
+                                <div class="dropzone-hint">Paste clipboard (Ctrl+V) or click to load</div>
+                            </div>
+                            <div class="dropzone-preview" id="dropzone-preview" style="display: none;">
+                                <img id="img2img-preview-img" src="" alt="Source preview">
+                            </div>
+                        </div>
+
+                        <div id="img2img-controls" class="img2img-controls" style="display: none;">
+                            <div class="settings-grid" style="margin-top: 8px;">
+                                <div class="control-group">
+                                    <label for="strength">Denoise Strength: <span id="strength-val">0.75</span></label>
+                                    <input type="range" id="strength" min="0.05" max="1.0" step="0.05" value="0.75">
+                                </div>
+                                <div class="control-group" id="qwen-mode-group">
+                                    <label for="edit-mode">Edit Mode</label>
+                                    <select id="edit-mode">
+                                        <option value="edit" selected>Instruct Edit</option>
+                                        <option value="img2img">Latent Img2Img</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+    
+                    <div class="settings-grid">
+                        <div class="control-group">
+                            <label for="steps">Steps: <span id="steps-val">6</span></label>
+                            <input type="range" id="steps" min="1" max="50" value="6">
+                        </div>
+    
+                        <div class="control-group">
+                            <label for="cfg">CFG Scale: <span id="cfg-val">2.0</span></label>
+                            <input type="range" id="cfg" min="1.0" max="15.0" step="0.5" value="2.0">
+                        </div>
+
+                        <div class="control-group tooltip-host">
+                            <label for="cfg-cutoff">CFG Cutoff: <span id="cfg-cutoff-val">OFF</span></label>
+                            <input type="range" id="cfg-cutoff" min="0.3" max="1.0" step="0.05" value="1.0">
+                            <div class="hover-tooltip">Stops classifier-free guidance after this fraction of steps. Later steps then run at half the cost. 0.6 saves about 30-40% at 25 steps with little visible change. SD/SDXL only.</div>
+                        </div>
+
+                        <div class="control-group aspect-presets-group">
+                            <label>Aspect Ratio Presets</label>
+                            <div class="aspect-presets">
+                                <button type="button" class="aspect-btn active" data-w="1024" data-h="1024">1:1</button>
+                                <button type="button" class="aspect-btn" data-w="1344" data-h="768">16:9</button>
+                                <button type="button" class="aspect-btn" data-w="768" data-h="1344">9:16</button>
+                                <button type="button" class="aspect-btn" data-w="1152" data-h="864">4:3</button>
+                                <button type="button" class="aspect-btn" data-w="864" data-h="1152">3:4</button>
+                            </div>
+                        </div>
+    
+                        <div class="control-group">
+                            <label for="width">Width</label>
+                            <select id="width">
+                                <option value="512">512px</option>
+                                <option value="768">768px</option>
+                                <option value="864">864px</option>
+                                <option value="1024" selected>1024px</option>
+                                <option value="1152">1152px</option>
+                                <option value="1344">1344px</option>
+                            </select>
+                        </div>
+    
+                        <div class="control-group">
+                            <label for="height">Height</label>
+                            <select id="height">
+                                <option value="512">512px</option>
+                                <option value="768">768px</option>
+                                <option value="864">864px</option>
+                                <option value="1024" selected>1024px</option>
+                                <option value="1152">1152px</option>
+                                <option value="1344">1344px</option>
+                            </select>
+                        </div>
+                    </div>
+    
+                    <div class="control-group">
+                        <label for="seed">Direct Seed (-1 for Random)</label>
+                        <input type="number" id="seed" value="-1">
+                    </div>
+    
+                    <button id="generate-btn" class="generate-button">
+                        GENERATE // EXECUTE <span class="hotkey-tip">[`]</span>
+                    </button>
+                </section>
+
+                <!-- LoRA Manager Card -->
+                <section class="cyber-card">
+                    <div class="card-corner-tag">LORA_CFG_02</div>
+                    <h2>LORA ADAPTERS</h2>
+                    <div class="cyber-divider"></div>
+
+                    <div class="control-group">
+                        <label for="lora-select">Detected LoRAs (in /loras)</label>
+                        <div class="lora-select-container">
+                            <select id="lora-select">
+                                <option value="">Loading local LoRAs...</option>
+                            </select>
+                            <button id="scan-loras-btn" class="btn secondary mini">SCAN</button>
+                        </div>
                     </div>
 
                     <div class="control-group">
-                        <label for="height">Height</label>
-                        <select id="height">
-                            <option value="512">512px</option>
-                            <option value="768">768px</option>
-                            <option value="1024" selected>1024px</option>
-                        </select>
+                        <label for="custom-lora-input">Or Custom HF Repo ID / Local Path</label>
+                        <input type="text" id="custom-lora-input" placeholder="e.g. ostris/super-cereal-sdxl-lora">
                     </div>
-                </div>
 
-                <div class="control-group">
-                    <label for="seed">Direct Seed (-1 for Random)</label>
-                    <input type="number" id="seed" value="-1">
-                </div>
+                    <div class="control-group">
+                        <label for="lora-weight-input">LoRA Weight / Scale: <span id="lora-weight-val">0.8</span></label>
+                        <input type="range" id="lora-weight-input" min="0.0" max="1.5" step="0.1" value="0.8">
+                    </div>
 
-                <button id="generate-btn" class="generate-button">
-                    GENERATE // EXECUTE
-                </button>
-            </section>
+                    <button id="add-lora-btn" class="generate-button select-button">
+                        ADD LORA ADAPTER
+                    </button>
+
+                    <div class="active-loras-section">
+                        <h3>ACTIVE LORAS</h3>
+                        <div id="active-loras-list" class="active-loras-list">
+                            <!-- Populated dynamically by JS -->
+                        </div>
+                    </div>
+                </section>
+            </div>
 
             <!-- Main preview & History workspace -->
             <section class="workspace">
                 <div class="cyber-card preview-container">
                     <div class="card-corner-tag">MONITOR_01</div>
-                    <div id="loading-overlay" class="hidden">
-                        <div class="spinner"></div>
-                        <p>SYNTHESIZING IMAGE... (SDXL FP16)</p>
-                    </div>
+                    <div id="loading-overlay" class="hidden" style="display: none !important;"></div>
                     <div id="placeholder-view" class="placeholder-view">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="placeholder-icon">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
                         </svg>
                         <p>READY_FOR_DIRECTIVES</p>
                     </div>
-                    <img id="result-img" class="result-image hidden" src="" alt="Synthesized output">
+
+                    <!-- Dual-Buffered Smooth Sliding Stage -->
+                    <div id="image-stage" class="image-stage hidden">
+                        <div class="slide-wrapper">
+                            <img id="result-img" class="result-image active-slide" src="" alt="Synthesized output" title="Click to view ultra-viewport fullscreen">
+                            <img id="incoming-img" class="result-image incoming-slide hidden" src="" alt="">
+                        </div>
+                    </div>
+
                     <div id="perf-stats" class="perf-stats hidden">
                         <span>TIME: <span id="stat-time">0.00s</span></span>
                         <span>SPEED: <span id="stat-speed">0.00 it/s</span></span>
+                        <span id="stat-breakdown" class="stat-breakdown"></span>
                     </div>
                     <div id="image-actions" class="image-actions hidden">
                         <a id="download-link" href="#" download="synthesized-image.png" class="btn">EXTRACT // DOWNLOAD</a>
+                        <button id="send-to-img2img-btn" class="btn secondary" style="border-color: #ff007f; color: #ff007f;">🎨 USE AS IMG2IMG</button>
                         <button id="reuse-seed-btn" class="btn secondary">REUSE SEED</button>
+                        <button id="animate-svd-btn" class="btn" style="background: linear-gradient(135deg, #00f0ff 0%, #ff007f 100%); color: #000; font-weight: bold; border: none;">🎥 ANIMATE WITH SVD (16GB GPU)</button>
                     </div>
                 </div>
 
@@ -117,9 +291,109 @@
             </section>
         </main>
     </div>
-    <div id="zoom-backdrop" class="zoom-backdrop hidden">
-        <img id="zoom-img" src="" alt="Zoomed View">
+
+    <!-- Ultra-Viewport Immersive Fullscreen Lightbox -->
+    <div id="zoom-backdrop" class="zoom-backdrop hidden" tabindex="0">
+        <div class="zoom-stage">
+            <img id="zoom-img" class="zoom-active-slide" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Fullscreen preview">
+            <img id="zoom-incoming-img" class="zoom-incoming-slide hidden" src="" alt="">
+        </div>
+
+        <!-- Fullscreen Top Bar / Controls -->
+        <div class="zoom-top-bar">
+            <div class="zoom-hint">
+                <span>Press <kbd class="cyber-kbd">`</kbd> Regenerate</span>
+                <span class="hint-divider">&bull;</span>
+                <span><kbd class="cyber-kbd">&larr;</kbd><kbd class="cyber-kbd">&rarr;</kbd> History</span>
+                <span class="hint-divider">&bull;</span>
+                <span><kbd class="cyber-kbd">ESC</kbd> Exit</span>
+            </div>
+            <button id="zoom-close-btn" class="zoom-close-btn" title="Exit Fullscreen (ESC)">&times;</button>
+        </div>
+
+        <!-- Thin Non-Invasive Fullscreen Left Column HUD -->
+        <aside id="zoom-side-col" class="zoom-side-col">
+            <div class="zoom-side-header">
+                <span class="zoom-side-title">DIRECTIVES &amp; SPECS</span>
+                <button id="zoom-side-toggle" class="zoom-side-toggle" title="Collapse / Expand panel">◀</button>
+            </div>
+            <div class="zoom-side-body" id="zoom-side-body">
+                <div class="zoom-side-section">
+                    <label class="zoom-side-label">PROMPT</label>
+                    <div id="zoom-meta-prompt" class="zoom-side-prompt" title="Click to copy prompt">Prompt directives</div>
+                </div>
+                <div id="zoom-neg-section" class="zoom-side-section hidden">
+                    <label class="zoom-side-label">NEGATIVE PROMPT</label>
+                    <div id="zoom-meta-neg" class="zoom-side-neg"></div>
+                </div>
+                <div class="zoom-side-section">
+                    <label class="zoom-side-label">PARAMETERS &amp; SPEED</label>
+                    <div id="zoom-meta-details" class="zoom-side-chips">
+                        <!-- Dynamically populated chips -->
+                    </div>
+                </div>
+                <div class="zoom-side-actions">
+                    <button id="zoom-regen-btn" class="btn zoom-btn-regen" title="Regenerate with backtick (`)">⚡ REGEN (`)</button>
+                    <button id="zoom-use-img2img-btn" class="btn zoom-btn-img2img">🎨 USE AS IMG2IMG</button>
+                    <a id="zoom-download-btn" href="#" download="synthesized-image.png" class="btn secondary zoom-btn-dl">⬇ DOWNLOAD</a>
+                </div>
+            </div>
+        </aside>
     </div>
-    <script src="/static/app.js"></script>
+    <!-- Sampler Test Matrix Modal Window -->
+    <div id="test-matrix-modal" class="test-modal-overlay hidden">
+        <div class="test-modal-container cyber-card pink">
+            <div class="modal-header">
+                <h2>SAMPLER BENCHMARK MATRIX</h2>
+                <button id="close-test-modal-btn" class="btn-close">&times;</button>
+            </div>
+            <div class="cyber-divider"></div>
+            
+            <div class="test-modal-controls">
+                <div class="control-group">
+                    <label for="test-model-select">Target Checkpoint Model</label>
+                    <select id="test-model-select">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="test-prompt">Benchmark Prompt</label>
+                    <input type="text" id="test-prompt" value="epic cinematic cybernetic dragon, hyperdetailed masterpiece, 8k resolution, vibrant lighting">
+                </div>
+                <button id="run-test-suite-btn" class="generate-button">RUN ALL SAMPLERS TEST</button>
+            </div>
+            
+            <div id="test-status-message" class="test-status-message hidden">
+                <div class="spinner"></div>
+                <span id="test-status-text">Testing Samplers...</span>
+            </div>
+
+            <div class="test-results-header">
+                <h3>SAVED TEST FOLDERS</h3>
+                <select id="test-folder-select">
+                    <option value="">Select Test Checkpoint Output Folder...</option>
+                </select>
+            </div>
+
+            <div id="test-matrix-grid" class="test-matrix-grid">
+                <!-- Test output thumbnails across samplers populated dynamically -->
+            </div>
+        </div>
+    </div>
+    <script src="/static/app.js?v=20260928-speed"></script>
+    <script>
+    // Fallback: ensure model dropdown matches preloaded model
+    window.addEventListener('load', async () => {
+        try {
+            const r = await fetch('/api/config');
+            const c = await r.json();
+            const sel = document.getElementById('model-select');
+            if (c.preload_model && sel) {
+                sel.value = c.preload_model;
+                sel.dispatchEvent(new Event('change'));
+            }
+        } catch(e) {}
+    });
+    </script>
 </body>
 </html>

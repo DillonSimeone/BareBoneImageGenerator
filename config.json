@@ -1,0 +1,6 @@
+{
+    "preload_model": "local_file_cyberrealisticPony_v180Coreshift_safetensors",
+    "performance_mode": "max_speed",
+    "torch_compile": true,
+    "turbo_mode": false
+}

@@ -16,7 +16,19 @@ hf_cache/
 static/outputs/*.png
 static/outputs/*.txt
 
+# Secrets (HF_TOKEN etc.)
+.env
+
+# Persistent torch.compile / Triton kernel cache
+.inductor_cache/
+
 # Logs & Temporary files
 *.log
 .locks/
 .agent_harnesses.json
+
+# OtherImages
+*.png
+*.jpeg
+*.safetensors
+/checkpoints
